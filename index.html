@@ -452,13 +452,10 @@
     <input type="password" id="api-input" placeholder="gsk_..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <div id="modal-section-label">MODELO</div>
     <select id="model-select">
-      <option value="llama3-70b-8192">Llama 3 70B (recomendado)</option>
-      <option value="llama3-8b-8192">Llama 3 8B (mais rápido)</option>
-      <option value="llama-3.1-70b-versatile">Llama 3.1 70B Versatile</option>
-      <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant</option>
-      <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</option>
-      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-      <option value="gemma2-9b-it">Gemma 2 9B</option>
+      <option value="llama-3.3-70b-versatile">Llama 3.3 70B — melhor qualidade</option>
+      <option value="llama-3.1-8b-instant">Llama 3.1 8B — mais rápido</option>
+      <option value="openai/gpt-oss-20b">GPT OSS 20B — rápido e barato</option>
+      <option value="openai/gpt-oss-120b">GPT OSS 120B — mais poderoso</option>
     </select>
     <button id="modal-save" onclick="saveKey()">SALVAR</button>
     <button id="modal-cancel" onclick="closeModal()">Cancelar</button>
@@ -477,16 +474,22 @@ let synth = window.speechSynthesis;
 
 // ── API KEY + MODEL ──
 const MODELS = [
-  'llama3-70b-8192','llama3-8b-8192','llama-3.1-70b-versatile',
-  'llama-3.1-8b-instant','llama-3.3-70b-versatile','mixtral-8x7b-32768','gemma2-9b-it'
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
 ];
 function getKey() { return localStorage.getItem('groq_key') || ''; }
-function getModel() { return localStorage.getItem('groq_model') || 'llama3-70b-8192'; }
+function getModel() { return localStorage.getItem('groq_model') || 'llama-3.3-70b-versatile'; }
 function updateModelBadge() {
   const m = getModel();
-  const short = m.replace('llama3-','L3-').replace('llama-3.1-','L3.1-').replace('llama-3.3-','L3.3-')
-    .replace('-versatile','').replace('-instant','').replace('mixtral-8x7b-32768','Mixtral').replace('gemma2-9b-it','Gemma2').replace('-8192','').replace('-70b','-70B').replace('-8b','-8B');
-  document.getElementById('model-badge').textContent = short;
+  const map = {
+    'llama-3.3-70b-versatile': 'L3.3-70B',
+    'llama-3.1-8b-instant': 'L3.1-8B',
+    'openai/gpt-oss-20b': 'GPT-OSS-20B',
+    'openai/gpt-oss-120b': 'GPT-OSS-120B',
+  };
+  document.getElementById('model-badge').textContent = map[m] || m;
 }
 function openModal() {
   document.getElementById('api-input').value = getKey();
@@ -681,7 +684,7 @@ Regras obrigatórias:
         'Authorization': 'Bearer ' + key
       },
       body: JSON.stringify({
-        model: getModel(),
+        model: getModel() || 'llama-3.3-70b-versatile',
         temperature: 0.92,
         max_tokens: 180,
         messages: [
