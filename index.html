@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Cachorro IA">
+<meta name="theme-color" content="#000000">
+<title>🐶 Cachorro IA — Battle Mode</title>
+<style>
+  :root {
+    --bg: #000;
+    --bg2: #0d0d0d;
+    --bg3: #161616;
+    --red: #e81212;
+    --red-dim: rgba(232,18,18,0.18);
+    --red-border: rgba(232,18,18,0.3);
+    --white: #fff;
+    --grey: #999;
+    --grey-dim: #444;
+    --orange: #f97316;
+    --header-h: 56px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--white);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+
+  /* ── HEADER ── */
+  #header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: var(--header-h);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--red-border);
+  }
+  #header-title { line-height: 1.1; }
+  #header-title .name {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -.3px;
+    color: var(--white);
+  }
+  #header-title .mode {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    color: var(--red);
+    font-family: 'Courier New', monospace;
+  }
+  #api-btn {
+    background: var(--bg3);
+    border: 1px solid var(--grey-dim);
+    color: var(--grey);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── SCROLL ── */
+  #scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── STATUS ROW ── */
+  #status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  #rec-dot-wrap { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; position: relative; }
+  #rec-pulse {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 5px solid rgba(232,18,18,0.3);
+    transform: scale(1);
+    opacity: 0;
+    transition: none;
+  }
+  #rec-pulse.active { animation: pulse .75s ease-in-out infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); opacity: 1; } to { transform: scale(1.7); opacity: 0; } }
+  #rec-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--grey-dim);
+    transition: background .2s;
+    position: relative; z-index: 1;
+  }
+  #rec-dot.on { background: var(--red); }
+  #status-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 2px;
+    color: var(--grey-dim);
+    font-family: 'Courier New', monospace;
+    transition: color .2s;
+  }
+  #status-label.on { color: var(--red); }
+  #speaking-badge {
+    margin-left: auto;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--orange); font-family: 'Courier New', monospace;
+    display: none;
+  }
+  #speaking-badge.on { display: block; }
+
+  /* ── CARDS ── */
+  .card { display: flex; flex-direction: column; gap: 8px; }
+  .card-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    color: var(--grey);
+    font-family: 'Courier New', monospace;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-label.red { color: rgba(232,18,18,.85); }
+  .card-body {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 12px;
+    min-height: 64px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--grey-dim);
+    line-height: 1.5;
+    transition: color .2s;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .card-body.has-text { color: var(--white); }
+  #response-card-body {
+    border: 1px solid var(--red-border);
+  }
+  #generating-row {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+    color: var(--grey);
+    font-size: 14px;
+  }
+  #generating-row.on { display: flex; }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--red-border);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── MIC BUTTON ── */
+  #mic-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  #mic-btn {
+    width: 86px; height: 86px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .2s, box-shadow .2s;
+  }
+  #mic-btn.on {
+    background: var(--red);
+    box-shadow: 0 0 24px rgba(232,18,18,.5);
+  }
+  #mic-ring {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 8px solid rgba(232,18,18,.2);
+    transform: scale(1); opacity: 0;
+  }
+  #mic-ring.active { animation: ring .75s ease-in-out infinite alternate; }
+  @keyframes ring { from { transform: scale(1); opacity: .8; } to { transform: scale(1.4); opacity: 0; } }
+  #mic-label {
+    font-size: 10px; font-weight: 900; letter-spacing: 1.5px;
+    color: var(--grey);
+    font-family: -apple-system, sans-serif;
+    transition: color .2s;
+  }
+  #mic-label.on { color: var(--red); }
+
+  /* ── ACTION BUTTONS ── */
+  #actions { display: flex; flex-direction: column; gap: 10px; }
+  #gen-btn {
+    width: 100%; padding: 18px;
+    border-radius: 14px; border: none; cursor: pointer;
+    font-size: 17px; font-weight: 900; letter-spacing: .5px;
+    color: var(--white);
+    background: linear-gradient(90deg, var(--red), #bb0000);
+    box-shadow: 0 4px 20px rgba(232,18,18,.4);
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity .2s, box-shadow .2s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  #gen-btn:disabled {
+    background: var(--bg3);
+    box-shadow: none;
+    opacity: .5;
+    cursor: default;
+  }
+  #speak-row { display: flex; gap: 10px; }
+  #speak-btn {
+    flex: 1; padding: 16px;
+    border-radius: 14px; border: none; cursor: pointer;
+    font-size: 16px; font-weight: 900; letter-spacing: .5px;
+    color: #000; background: var(--white);
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity .2s;
+  }
+  #speak-btn:disabled { opacity: .25; cursor: default; }
+  #stop-btn {
+    width: 54px; height: 54px;
+    border-radius: 50%; border: none; cursor: pointer;
+    background: var(--bg3);
+    font-size: 30px;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .2s;
+  }
+  #stop-btn.on { background: rgba(249,115,22,.12); }
+
+  /* ── ERROR ── */
+  #error-box {
+    display: none;
+    background: var(--red-dim);
+    border: 1px solid var(--red-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,.85);
+    line-height: 1.4;
+  }
+  #error-box.on { display: block; }
+
+  /* ── API KEY MODAL ── */
+  #modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.8);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #modal-overlay.on { display: flex; }
+  #modal {
+    background: #1a1a1a;
+    border: 1px solid var(--grey-dim);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%; max-width: 380px;
+  }
+  #modal h2 { font-size: 17px; font-weight: 800; margin-bottom: 6px; }
+  #modal p { font-size: 13px; color: var(--grey); margin-bottom: 16px; line-height: 1.4; }
+  #modal input {
+    width: 100%; padding: 12px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--grey-dim);
+    border-radius: 10px;
+    color: var(--white);
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    margin-bottom: 12px;
+    outline: none;
+  }
+  #modal input:focus { border-color: var(--red); }
+  #modal-save {
+    width: 100%; padding: 14px;
+    background: var(--red);
+    border: none; border-radius: 10px;
+    color: var(--white); font-size: 15px; font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  #modal-cancel {
+    width: 100%; padding: 10px;
+    background: none; border: none;
+    color: var(--grey); font-size: 14px; cursor: pointer;
+  }
+
+  /* ── MODEL SELECT ── */
+  #model-select {
+    width: 100%; padding: 12px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--grey-dim);
+    border-radius: 10px;
+    color: var(--white);
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    margin-bottom: 12px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+  }
+  #model-select:focus { border-color: var(--red); }
+  #model-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--grey-dim);
+    font-family: 'Courier New', monospace;
+    background: var(--bg3);
+    border: 1px solid var(--grey-dim);
+    border-radius: 6px;
+    padding: 3px 7px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #modal-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--grey);
+    font-family: 'Courier New', monospace;
+    margin-bottom: 6px;
+    margin-top: 4px;
+  }
+
+  /* ── INSTALL HINT ── */
+  #install-hint {
+    text-align: center;
+    font-size: 11px; color: var(--grey-dim);
+    padding: 4px 0 2px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div id="header-title">
+      <div class="name">🐶 CACHORRO IA</div>
+      <div class="mode">BATTLE MODE</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div id="model-badge" onclick="openModal()" title="Trocar modelo"></div>
+      <button id="api-btn" onclick="openModal()">API KEY</button>
+    </div>
+  </div>
+
+  <!-- SCROLL CONTENT -->
+  <div id="scroll">
+
+    <!-- STATUS -->
+    <div id="status-row">
+      <div id="rec-dot-wrap">
+        <div id="rec-pulse"></div>
+        <div id="rec-dot"></div>
+      </div>
+      <span id="status-label">AGUARDANDO</span>
+      <span id="speaking-badge">🔊 FALANDO</span>
+    </div>
+
+    <!-- TRANSCRIBED -->
+    <div class="card">
+      <div class="card-label">👂 O QUE O ADVERSÁRIO DISSE</div>
+      <div class="card-body" id="transcribed-box">Pressione o microfone e fale...</div>
+    </div>
+
+    <!-- MIC -->
+    <div id="mic-wrap">
+      <button id="mic-btn" onclick="toggleMic()">
+        <div id="mic-ring"></div>
+        🎙️
+      </button>
+      <div id="mic-label">OUVIR ADVERSÁRIO</div>
+    </div>
+
+    <!-- RESPONSE -->
+    <div class="card">
+      <div class="card-label red">🐾 RESPOSTA DO CACHORRO</div>
+      <div class="card-body" id="response-card-body">
+        <div id="generating-row">
+          <div class="spinner"></div>
+          Pensando a melhor resposta...
+        </div>
+        <div id="response-text">Pressione GERAR RESPOSTA 👇</div>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div id="actions">
+      <button id="gen-btn" disabled onclick="generateResponse()">
+        🧠 GERAR RESPOSTA
+      </button>
+      <div id="speak-row">
+        <button id="speak-btn" disabled onclick="speak()">🔊 FALAR</button>
+        <button id="stop-btn" onclick="stopSpeaking()">⏹️</button>
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div id="error-box"></div>
+
+    <!-- INSTALL HINT -->
+    <div id="install-hint">Safari → Compartilhar → Adicionar à Tela Inicial</div>
+
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>🔑 Configurações Groq</h2>
+    <p>Cole sua chave do Groq (começa com gsk_). Fica salva só no seu dispositivo.</p>
+    <input type="password" id="api-input" placeholder="gsk_..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div id="modal-section-label">MODELO</div>
+    <select id="model-select">
+      <option value="llama3-70b-8192">Llama 3 70B (recomendado)</option>
+      <option value="llama3-8b-8192">Llama 3 8B (mais rápido)</option>
+      <option value="llama-3.1-70b-versatile">Llama 3.1 70B Versatile</option>
+      <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant</option>
+      <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</option>
+      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+      <option value="gemma2-9b-it">Gemma 2 9B</option>
+    </select>
+    <button id="modal-save" onclick="saveKey()">SALVAR</button>
+    <button id="modal-cancel" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let transcribed = '';
+let response = '';
+let isRecording = false;
+let isGenerating = false;
+let isSpeaking = false;
+let dictationCapability = null;
+let synth = window.speechSynthesis;
+
+// ── API KEY + MODEL ──
+const MODELS = [
+  'llama3-70b-8192','llama3-8b-8192','llama-3.1-70b-versatile',
+  'llama-3.1-8b-instant','llama-3.3-70b-versatile','mixtral-8x7b-32768','gemma2-9b-it'
+];
+function getKey() { return localStorage.getItem('groq_key') || ''; }
+function getModel() { return localStorage.getItem('groq_model') || 'llama3-70b-8192'; }
+function updateModelBadge() {
+  const m = getModel();
+  const short = m.replace('llama3-','L3-').replace('llama-3.1-','L3.1-').replace('llama-3.3-','L3.3-')
+    .replace('-versatile','').replace('-instant','').replace('mixtral-8x7b-32768','Mixtral').replace('gemma2-9b-it','Gemma2').replace('-8192','').replace('-70b','-70B').replace('-8b','-8B');
+  document.getElementById('model-badge').textContent = short;
+}
+function openModal() {
+  document.getElementById('api-input').value = getKey();
+  const sel = document.getElementById('model-select');
+  const cur = getModel();
+  sel.value = MODELS.includes(cur) ? cur : 'llama3-70b-8192';
+  document.getElementById('modal-overlay').classList.add('on');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('on'); }
+function saveKey() {
+  const v = document.getElementById('api-input').value.trim();
+  if (!v) { showError('Cole uma chave válida.'); return; }
+  localStorage.setItem('groq_key', v);
+  const m = document.getElementById('model-select').value;
+  localStorage.setItem('groq_model', m);
+  updateModelBadge();
+  closeModal();
+  showError('');
+}
+
+// ── UI HELPERS ──
+function setRecording(on) {
+  isRecording = on;
+  document.getElementById('rec-dot').className = on ? 'on' : '';
+  document.getElementById('rec-pulse').className = on ? 'active' : '';
+  document.getElementById('status-label').textContent = on ? 'GRAVANDO' : 'AGUARDANDO';
+  document.getElementById('status-label').className = on ? 'on' : '';
+  document.getElementById('mic-btn').className = on ? 'on' : '';
+  document.getElementById('mic-ring').className = on ? 'active' : '';
+  document.getElementById('mic-label').textContent = on ? 'PARAR' : 'OUVIR ADVERSÁRIO';
+  document.getElementById('mic-label').className = on ? 'on' : '';
+}
+
+function setTranscribed(t) {
+  transcribed = t;
+  const box = document.getElementById('transcribed-box');
+  if (t) { box.textContent = t; box.classList.add('has-text'); }
+  else { box.textContent = 'Pressione o microfone e fale...'; box.classList.remove('has-text'); }
+  document.getElementById('gen-btn').disabled = !t || isGenerating;
+}
+
+function setGenerating(on) {
+  isGenerating = on;
+  document.getElementById('generating-row').className = on ? 'on' : '';
+  document.getElementById('response-text').style.display = on ? 'none' : '';
+  document.getElementById('gen-btn').disabled = on || !transcribed;
+}
+
+function setResponse(r) {
+  response = r;
+  const el = document.getElementById('response-text');
+  if (r) { el.textContent = r; el.parentElement.classList.add('has-text'); }
+  else { el.textContent = 'Pressione GERAR RESPOSTA 👇'; el.parentElement.classList.remove('has-text'); }
+  document.getElementById('speak-btn').disabled = !r || isSpeaking;
+}
+
+function setSpeaking(on) {
+  isSpeaking = on;
+  document.getElementById('speaking-badge').className = on ? 'on' : '';
+  document.getElementById('stop-btn').className = on ? 'on' : '';
+  document.getElementById('speak-btn').disabled = !response || on;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  if (msg) { el.textContent = '⚠️ ' + msg; el.classList.add('on'); }
+  else { el.textContent = ''; el.classList.remove('on'); }
+}
+
+// ── MIC / DICTATION ──
+async function toggleMic() {
+  if (isRecording) {
+    stopMic();
+  } else {
+    startMic();
+  }
+}
+
+async function startMic() {
+  showError('');
+  setTranscribed('');
+  setResponse('');
+
+  // Try dictation capability first
+  if (dictationCapability) {
+    try {
+      setRecording(true);
+      let liveText = '';
+
+      dictationCapability.onPartial(({ text }) => {
+        setTranscribed(text);
+      });
+
+      dictationCapability.onFinal(({ text }) => {
+        liveText += (liveText ? ' ' : '') + text;
+        setTranscribed(liveText);
+      });
+
+      dictationCapability.onState(({ state, reason }) => {
+        if (state === 'idle') {
+          setRecording(false);
+          if (reason === 'stopped' || reason === 'viewer_stopped') {
+            // natural end
+          }
+        }
+      });
+
+      await dictationCapability.start();
+    } catch (e) {
+      setRecording(false);
+      fallbackToWebSpeech();
+    }
+  } else {
+    fallbackToWebSpeech();
+  }
+}
+
+function stopMic() {
+  if (dictationCapability) {
+    dictationCapability.stop().catch(() => {});
+  }
+  if (window._recognition) {
+    window._recognition.stop();
+  }
+  setRecording(false);
+}
+
+function fallbackToWebSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    showError('Reconhecimento de voz não suportado. Abra no Safari.');
+    return;
+  }
+  const rec = new SR();
+  window._recognition = rec;
+  rec.lang = 'pt-BR';
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+
+  let final = '';
+
+  rec.onstart = () => setRecording(true);
+  rec.onend = () => setRecording(false);
+  rec.onerror = (e) => {
+    setRecording(false);
+    if (e.error !== 'aborted') showError('Erro no microfone: ' + e.error);
+  };
+  rec.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        final += e.results[i][0].transcript + ' ';
+      } else {
+        interim = e.results[i][0].transcript;
+      }
+    }
+    setTranscribed((final + interim).trim());
+  };
+
+  rec.start();
+}
+
+// ── GROQ API ──
+async function generateResponse() {
+  if (!transcribed || isGenerating) return;
+  const key = getKey();
+  if (!key) { openModal(); return; }
+
+  setGenerating(true);
+  showError('');
+
+  const SYSTEM = `Você é o Cachorro IA, um cachorro debochado, engraçado e inteligente que está disputando uma batalha ao vivo no TikTok.
+
+Sua missão: criar respostas curtas, cortantes, originais e engraçadas para o que o adversário acabou de dizer.
+
+Regras obrigatórias:
+- Responda em português brasileiro natural, com gírias e expressões reais
+- Máximo de 2-3 frases curtas e impactantes — brevidade é arma
+- Use humor de cachorro: você entende tudo mas finge ser simples
+- Pode usar "AU AU!" ou "WOOF!" como pontuação dramática quando fizer sentido
+- Seja debochado e inteligente, nunca grosseiro sem graça
+- Referências culturais brasileiras são bem-vindas
+- Sem emojis no texto (a voz vai ler, precisa soar bem)
+- Fale diretamente como se estivesse respondendo o adversário na live`;
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key
+      },
+      body: JSON.stringify({
+        model: getModel(),
+        temperature: 0.92,
+        max_tokens: 180,
+        messages: [
+          { role: 'system', content: SYSTEM },
+          { role: 'user', content: `O adversário na batalha disse: "${transcribed.trim()}"\n\nResponda como Cachorro IA:` }
+        ]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || 'HTTP ' + res.status);
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content?.trim() || 'AU AU! Deu erro aqui, mas você já perdeu mesmo!';
+    setResponse(text);
+  } catch (e) {
+    showError('Erro na API: ' + e.message);
+  }
+
+  setGenerating(false);
+}
+
+// ── TTS ──
+function speak() {
+  if (!response || isSpeaking) return;
+  synth.cancel();
+  const utt = new SpeechSynthesisUtterance(response);
+  utt.lang = 'pt-BR';
+  utt.pitch = 1.3;
+  utt.rate = 0.9;
+  utt.volume = 1;
+
+  // Try to find pt-BR voice
+  const voices = synth.getVoices();
+  const ptVoice = voices.find(v => v.lang.startsWith('pt-BR') || v.lang.startsWith('pt_BR'));
+  if (ptVoice) utt.voice = ptVoice;
+
+  utt.onstart = () => setSpeaking(true);
+  utt.onend = () => setSpeaking(false);
+  utt.onerror = () => setSpeaking(false);
+
+  synth.speak(utt);
+}
+
+function stopSpeaking() {
+  synth.cancel();
+  setSpeaking(false);
+}
+
+// ── INIT ──
+async function init() {
+  // Load voices async
+  if (synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = () => synth.getVoices();
+  }
+
+  // Init model badge
+  updateModelBadge();
+
+  // Check if no API key → prompt
+  if (!getKey()) {
+    setTimeout(openModal, 600);
+  }
+
+  // Show install hint if not standalone
+  if (!window.navigator.standalone) {
+    document.getElementById('install-hint').style.display = 'block';
+  }
+
+  // Try dictation capability
+  if (window.claude) {
+    try {
+      const d = await claude.use('dictation');
+      if (d) {
+        dictationCapability = d;
+      }
+    } catch (_) {}
+  }
+}
+
+init();
+</script>
+</body>
+</html>
