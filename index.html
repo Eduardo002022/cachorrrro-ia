@@ -317,6 +317,48 @@
     color: var(--grey); font-size: 14px; cursor: pointer;
   }
 
+  /* ── MODEL SELECT ── */
+  #model-select {
+    width: 100%; padding: 12px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--grey-dim);
+    border-radius: 10px;
+    color: var(--white);
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    margin-bottom: 12px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    cursor: pointer;
+  }
+  #model-select:focus { border-color: var(--red); }
+  #model-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--grey-dim);
+    font-family: 'Courier New', monospace;
+    background: var(--bg3);
+    border: 1px solid var(--grey-dim);
+    border-radius: 6px;
+    padding: 3px 7px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #modal-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--grey);
+    font-family: 'Courier New', monospace;
+    margin-bottom: 6px;
+    margin-top: 4px;
+  }
+
   /* ── INSTALL HINT ── */
   #install-hint {
     text-align: center;
@@ -336,7 +378,10 @@
       <div class="name">🐶 CACHORRO IA</div>
       <div class="mode">BATTLE MODE</div>
     </div>
-    <button id="api-btn" onclick="openModal()">API KEY</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div id="model-badge" onclick="openModal()" title="Trocar modelo"></div>
+      <button id="api-btn" onclick="openModal()">API KEY</button>
+    </div>
   </div>
 
   <!-- SCROLL CONTENT -->
@@ -402,9 +447,19 @@
 <!-- API KEY MODAL -->
 <div id="modal-overlay">
   <div id="modal">
-    <h2>🔑 Chave da API Groq</h2>
+    <h2>🔑 Configurações Groq</h2>
     <p>Cole sua chave do Groq (começa com gsk_). Fica salva só no seu dispositivo.</p>
     <input type="password" id="api-input" placeholder="gsk_..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div id="modal-section-label">MODELO</div>
+    <select id="model-select">
+      <option value="llama3-70b-8192">Llama 3 70B (recomendado)</option>
+      <option value="llama3-8b-8192">Llama 3 8B (mais rápido)</option>
+      <option value="llama-3.1-70b-versatile">Llama 3.1 70B Versatile</option>
+      <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant</option>
+      <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</option>
+      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+      <option value="gemma2-9b-it">Gemma 2 9B</option>
+    </select>
     <button id="modal-save" onclick="saveKey()">SALVAR</button>
     <button id="modal-cancel" onclick="closeModal()">Cancelar</button>
   </div>
@@ -420,10 +475,24 @@ let isSpeaking = false;
 let dictationCapability = null;
 let synth = window.speechSynthesis;
 
-// ── API KEY ──
+// ── API KEY + MODEL ──
+const MODELS = [
+  'llama3-70b-8192','llama3-8b-8192','llama-3.1-70b-versatile',
+  'llama-3.1-8b-instant','llama-3.3-70b-versatile','mixtral-8x7b-32768','gemma2-9b-it'
+];
 function getKey() { return localStorage.getItem('groq_key') || ''; }
+function getModel() { return localStorage.getItem('groq_model') || 'llama3-70b-8192'; }
+function updateModelBadge() {
+  const m = getModel();
+  const short = m.replace('llama3-','L3-').replace('llama-3.1-','L3.1-').replace('llama-3.3-','L3.3-')
+    .replace('-versatile','').replace('-instant','').replace('mixtral-8x7b-32768','Mixtral').replace('gemma2-9b-it','Gemma2').replace('-8192','').replace('-70b','-70B').replace('-8b','-8B');
+  document.getElementById('model-badge').textContent = short;
+}
 function openModal() {
   document.getElementById('api-input').value = getKey();
+  const sel = document.getElementById('model-select');
+  const cur = getModel();
+  sel.value = MODELS.includes(cur) ? cur : 'llama3-70b-8192';
   document.getElementById('modal-overlay').classList.add('on');
 }
 function closeModal() { document.getElementById('modal-overlay').classList.remove('on'); }
@@ -431,6 +500,9 @@ function saveKey() {
   const v = document.getElementById('api-input').value.trim();
   if (!v) { showError('Cole uma chave válida.'); return; }
   localStorage.setItem('groq_key', v);
+  const m = document.getElementById('model-select').value;
+  localStorage.setItem('groq_model', m);
+  updateModelBadge();
   closeModal();
   showError('');
 }
@@ -609,7 +681,7 @@ Regras obrigatórias:
         'Authorization': 'Bearer ' + key
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: getModel(),
         temperature: 0.92,
         max_tokens: 180,
         messages: [
@@ -667,6 +739,9 @@ async function init() {
   if (synth.onvoiceschanged !== undefined) {
     synth.onvoiceschanged = () => synth.getVoices();
   }
+
+  // Init model badge
+  updateModelBadge();
 
   // Check if no API key → prompt
   if (!getKey()) {
